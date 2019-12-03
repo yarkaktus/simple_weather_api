@@ -30,13 +30,20 @@ def error_response_handler(text='Wrong request', status=400) -> web.Response:
 
 
 async def get_forecast_data(request: web.Request, city: str, dt: int, now=True) -> json:
+
     date = datetime.fromtimestamp(dt).strftime("%Y-%m-%d")
-
     redis: aioredis.Redis = request.app['redis']
-    key = f'{city}_{now if now else dt}'
-    value = await redis.get(key)
 
-    if not value:
+    key = f'{city}_{"now" if now else dt}'
+    try:
+        value = await redis.get(key)
+    except:
+        value = None
+
+    if value:
+        value = json.loads(value)
+    else:
+
         params = {
             'key': API_KEY,
             "format": "json",
@@ -53,8 +60,6 @@ async def get_forecast_data(request: web.Request, city: str, dt: int, now=True) 
             await redis.set(key, json.dumps(value), expire=30)
         else:
             await redis.set(key, json.dumps(value))
-    else:
-        value = json.loads(value)
 
     return value
 
@@ -65,7 +70,6 @@ async def history_forecast(request) -> web.Response:
         dt = int(request.query.get('dt') or time.time())
 
         forecast_data = await get_forecast_data(request, city, dt, now=False)
-
         response_data = {
             "city": forecast_data['data']['request'][0]['query'],
             "unit": "celsius",
@@ -82,7 +86,6 @@ async def current_forecast(request) -> web.Response:
         dt = int(time.time())
 
         forecast_data = await get_forecast_data(request, city, dt, now=True)
-
         response_data = {
             "city": forecast_data['data']['request'][0]['query'],
             "unit": "celsius",
@@ -96,8 +99,7 @@ async def current_forecast(request) -> web.Response:
 async def get_app():
     app = web.Application()
 
-    app['redis'] = await aioredis.create_redis((REDIS_HOST, REDIS_PORT),
-                                               db=1, encoding='utf-8')
+    app['redis'] = await aioredis.create_redis((REDIS_HOST, REDIS_PORT))
 
     app.add_routes([
         web.get('/v1/forecast/', history_forecast),

@@ -18,9 +18,9 @@ services:
     image: "malexer/twemproxy:latest"
     environment:
       LISTEN_PORT: 7000
-      TIMEOUT: 2000
+      TIMEOUT: 200
       AUTO_EJECT_HOSTS: "true"
-      SERVER_RETRY_TIMEOUT: 3000
+      SERVER_RETRY_TIMEOUT: 300
       SERVER_FAILURE_LIMIT: 1
       PRECONNECT: "true"
       REDIS_SERVERS: "haproxy_1:6379:1, haproxy_2:6379:1, haproxy_3:6379:1"
