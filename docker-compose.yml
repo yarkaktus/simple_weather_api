@@ -1,0 +1,124 @@
+version: '3'
+
+services:
+  weather_app:
+    environment:
+      REDIS_HOST: "twemproxy"
+      REDIS_PORT: 7000
+    build:
+      context: .
+      dockerfile: ./deploy/app_dockerfile
+    container_name: weather_app
+    ports:
+      - 8000:8000
+    depends_on:
+      - twemproxy
+
+  twemproxy:
+    image: "malexer/twemproxy:latest"
+    environment:
+      LISTEN_PORT: 7000
+      TIMEOUT: 2000
+      AUTO_EJECT_HOSTS: "true"
+      SERVER_RETRY_TIMEOUT: 3000
+      SERVER_FAILURE_LIMIT: 1
+      PRECONNECT: "true"
+      REDIS_SERVERS: "haproxy_1:6379:1, haproxy_2:6379:1, haproxy_3:6379:1"
+    container_name: tw_service
+    depends_on:
+      - haproxy_1
+      - haproxy_2
+      - haproxy_3
+
+  haproxy_1:
+    image: "haproxy:2.1.0-alpine"
+    container_name: haproxy_1
+    volumes:
+      - ./deploy/haproxy1.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    depends_on:
+      - redis_master_1
+      - redis_slave_1
+      - redis_sentinel_1
+
+  haproxy_2:
+    image: "haproxy:2.1.0-alpine"
+    container_name: haproxy_2
+    volumes:
+      - ./deploy/haproxy2.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    depends_on:
+      - redis_master_2
+      - redis_slave_2
+      - redis_sentinel_2
+
+  haproxy_3:
+    image: "haproxy:2.1.0-alpine"
+    container_name: haproxy_3
+    volumes:
+      - ./deploy/haproxy3.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    depends_on:
+      - redis_master_3
+      - redis_slave_3
+      - redis_sentinel_3
+
+  redis_sentinel_1:
+    image: "redis:alpine"
+    container_name: redis_sentinel_1
+    volumes:
+      - ./deploy/:/tmp/deploy
+    command: sh -c "mkdir /etc/redis &&
+            cp /tmp/deploy/sentinel1.conf /etc/redis/sentinel.conf &&
+            redis-server /etc/redis/sentinel.conf --sentinel
+            "
+    depends_on:
+      - redis_master_1
+
+  redis_sentinel_2:
+    image: "redis:alpine"
+    container_name: redis_sentinel_2
+    volumes:
+      - ./deploy/:/tmp/deploy
+    command: sh -c "mkdir /etc/redis &&
+      cp /tmp/deploy/sentinel2.conf /etc/redis/sentinel.conf &&
+      redis-server /etc/redis/sentinel.conf --sentinel
+      "
+    depends_on:
+      - redis_master_2
+
+  redis_sentinel_3:
+    image: "redis:alpine"
+    container_name: redis_sentinel_3
+    volumes:
+      - ./deploy/:/tmp/deploy
+    command: sh -c "mkdir /etc/redis &&
+      cp /tmp/deploy/sentinel3.conf /etc/redis/sentinel.conf &&
+      redis-server /etc/redis/sentinel.conf --sentinel
+      "
+    depends_on:
+      - redis_master_3
+
+  redis_master_1:
+    image: "redis:alpine"
+    container_name: redis_master_1
+
+  redis_slave_1:
+    image: "redis:alpine"
+    container_name: redis_slave_1
+    command: redis-server --slaveof redis_master_1 6379
+
+  redis_master_2:
+    image: "redis:alpine"
+    container_name: redis_master_2
+
+  redis_slave_2:
+    image: "redis:alpine"
+    container_name: redis_slave_2
+    command: redis-server --slaveof redis_master_2 6379
+
+  redis_master_3:
+    image: "redis:alpine"
+    container_name: redis_master_3
+
+  redis_slave_3:
+    image: "redis:alpine"
+    container_name: redis_slave_3
+    command: redis-server --slaveof redis_master_3 6379
