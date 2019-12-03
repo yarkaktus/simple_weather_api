@@ -5,6 +5,7 @@ from datetime import datetime
 
 import aiohttp
 from aiohttp import web
+from aiohttp_prometheus import MetricsMiddleware, MetricsView
 
 LISTEN_PORT = os.getenv('LISTEN_PORT', 8000)
 WEATHER_API_URL = os.getenv('WEATHER_API_URL', 'https://api.worldweatheronline.com/premium/v1/past-weather.ashx')
@@ -73,10 +74,12 @@ async def current_forecast(request) -> web.Response:
 
 
 app = web.Application()
+app.middlewares.append(MetricsMiddleware())
 
 app.add_routes([
     web.get('/v1/forecast/', history_forecast),
     web.get('/v1/current/', current_forecast),
+    web.get('/metrics', MetricsView),
 ])
 
 if __name__ == '__main__':
