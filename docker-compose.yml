@@ -1,0 +1,35 @@
+version: '3'
+
+volumes:
+    prometheus_data: {}
+    grafana_data: {}
+
+services:
+
+  weather_app:
+    container_name: weather_app
+    build:
+      context: .
+      dockerfile: ./deploy/app_dockerfile
+    environment:
+      LISTEN_PORT: 8000
+    ports:
+    - 8000:8000
+
+  prometheus:
+      image: prom/prometheus:latest
+      volumes:
+          - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml
+      command:
+          - --config.file=/etc/prometheus/prometheus.yml
+      depends_on:
+        - weather_app
+      ports:
+          - 9090:9090
+
+  grafana:
+      image: grafana/grafana
+      depends_on:
+          - prometheus
+      ports:
+          - 3000:3000
